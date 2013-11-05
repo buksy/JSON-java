@@ -1,0 +1,47 @@
+<project name="JSON-java" basedir=".">
+	<!-- Defining the Properties -->
+	<property name="ROOT" value="." />
+	<property name="SRC" value="${ROOT}/src" />
+	<property name="JDOC" value="${ROOT}/javadoc" />
+	<property name="BUILD" value="${ROOT}/build" />
+	<property name="CONFIG" value="${ROOT}/config" />
+	<property name="JARS" value = "${ROOT}/jars"/>
+
+	<target name="init">
+		<echo message="Initiating build environment..." />
+		<tstamp />
+		<delete dir="${BUILD}"/>
+		<delete dir="${JARS}" /> 
+		<mkdir dir="${BUILD}" />
+		<mkdir dir="${JDOC}" />
+		<mkdir dir="${JARS}"/>
+	</target>
+	
+        <target name="clean">
+                <delete dir="${BUILD}"/>
+        </target>
+
+
+	<!-- The compilation target -->
+	<target name="compile" depends="init">
+
+		<echo message="Compiling ${ant.project.name}..." />
+
+		<!-- actually compile -->
+		<javac srcdir="${SRC}" destdir="${BUILD}" nowarn="yes" source="1.6" target="1.6" includeAntRuntime="no" debug="true" debuglevel="lines,vars,source">
+			<compilerarg value="-XDignore.symbol.file=true"/>	
+		</javac>
+
+	</target>
+
+
+	<target name="build-jar" depends="compile">
+									
+		<jar destfile="${JARS}/json-java.jar">
+			<fileset dir="${BUILD}"/>
+		</jar>
+	</target>
+
+
+	
+</project>
