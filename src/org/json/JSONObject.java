@@ -27,17 +27,35 @@ package org.json;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.TimeZone;
+
+import javax.swing.text.DateFormatter;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlTransient;
 
 /**
  * A JSONObject is an unordered collection of name/value pairs. Its external
@@ -135,7 +153,7 @@ public class JSONObject {
     /**
      * The map where the JSONObject's properties are kept.
      */
-    private final Map map;
+    private final Map<String, Object> map;
 
     /**
      * It is sometimes more convenient and less ambiguous to have a
@@ -149,7 +167,7 @@ public class JSONObject {
      * Construct an empty JSONObject.
      */
     public JSONObject() {
-        this.map = new HashMap();
+        this.map = new HashMap<String, Object>();
     }
 
     /**
@@ -239,15 +257,15 @@ public class JSONObject {
      *            the JSONObject.
      * @throws JSONException
      */
-    public JSONObject(Map map) {
-        this.map = new HashMap();
+    public JSONObject(Map<String, Object> map) {
+        this.map = new HashMap<String, Object>();
         if (map != null) {
             Iterator i = map.entrySet().iterator();
             while (i.hasNext()) {
-                Map.Entry e = (Map.Entry) i.next();
+				Map.Entry e = (Map.Entry) i.next();
                 Object value = e.getValue();
                 if (value != null) {
-                    this.map.put(e.getKey(), wrap(value));
+                    this.map.put((String)e.getKey(), wrap(value));
                 }
             }
         }
@@ -276,7 +294,12 @@ public class JSONObject {
      */
     public JSONObject(Object bean) {
         this();
-        this.populateMap(bean);
+        XmlAccessorType accessorType = bean.getClass().getAnnotation(XmlAccessorType.class);
+        if(accessorType != null && accessorType.value() == XmlAccessType.FIELD){
+        	this.populateFieldMap(bean);
+        }else{
+        	this.populateMap(bean);
+        }
     }
 
     /**
@@ -1022,6 +1045,55 @@ public class JSONObject {
             }
         }
     }
+    private void populateFieldMap(Object bean) {
+        Class klass = bean.getClass();
+
+// If klass is a System class then set includeSuperClass to false.
+
+        recursiveBuildFieldMap(bean, klass);
+    }
+
+	private void recursiveBuildFieldMap(Object bean, Class klass) {
+
+		Field[] fields = klass.getDeclaredFields();
+		for(int i = 0; i < fields.length; i += 1){
+			try{
+				Field field = fields[i];
+
+				if(Modifier.isFinal(field.getModifiers()) || Modifier.isStatic(field.getModifiers())){
+					continue;
+				}
+
+				XmlTransient trans = field.getAnnotation(XmlTransient.class);
+				if(trans != null){
+					continue;
+				}
+				String name = field.getName();
+
+				XmlElement xmlElement = field.getAnnotation(XmlElement.class);
+				if(xmlElement != null && xmlElement.name() != null && !xmlElement.name().trim().isEmpty()){
+					name = xmlElement.name();
+				}
+
+				field.setAccessible(true);
+				Object retVal = field.get(bean);
+				field.setAccessible(false);
+
+				if(retVal != null){
+					this.map.put(name, wrap(retVal));
+				}
+
+			}catch (Exception ignore){
+			}
+		}
+
+		Class superClass = klass.getSuperclass();
+		if(superClass != null){
+			if(!superClass.getCanonicalName().startsWith("java")){
+				recursiveBuildFieldMap(bean, superClass);
+			}
+		}
+	}
 
     /**
      * Put a key/boolean pair in the JSONObject.
@@ -1507,6 +1579,9 @@ public class JSONObject {
                 return object;
             }
 
+            if(object instanceof Enum){
+            	return object.toString();
+            }
             if (object instanceof Collection) {
                 return new JSONArray((Collection) object);
             }
@@ -1516,6 +1591,13 @@ public class JSONObject {
             if (object instanceof Map) {
                 return new JSONObject((Map) object);
             }
+            if (object instanceof Date){
+            	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+            	sdf.setTimeZone(TimeZone.getTimeZone("UTC")); // The date will be always formatted to UTF
+            	String date = sdf.format((Date)object);
+            	return date;
+            }
+        
             Package objectPackage = object.getClass().getPackage();
             String objectPackageName = objectPackage != null ? objectPackage
                     .getName() : "";
@@ -1638,4 +1720,227 @@ public class JSONObject {
             throw new JSONException(exception);
         }
     }
+    
+    /**
+     * Convert the JSON objec to a java object
+     * @param clazz
+     * @return
+     * @throws Exception
+     */
+    public <T> T convertToBean (Class<T> clazz) throws Exception{
+    	
+    	Constructor<T> constructor = clazz.getDeclaredConstructor(null);
+    	
+    	constructor.setAccessible(true);
+    	T object = constructor.newInstance(null);
+    	constructor.setAccessible(false);
+    	
+    	recursiveConvertToBean(object, clazz);
+    	
+    	return object;    	
+    }
+    @SuppressWarnings("unchecked")
+	private void recursiveConvertToBean(Object bean, Class clazz) throws Exception{
+    	
+    	Field[] fileds = clazz.getDeclaredFields();
+    	
+    	for(Field field : fileds){
+			if(Modifier.isFinal(field.getModifiers()) || Modifier.isStatic(field.getModifiers())){
+				continue;
+			}
+
+			XmlTransient trans = field.getAnnotation(XmlTransient.class);
+			if(trans != null){
+				continue;
+			}
+			String name = field.getName();
+
+			XmlElement xmlElement = field.getAnnotation(XmlElement.class);
+			if(xmlElement != null && xmlElement.name() != null && !xmlElement.name().trim().isEmpty()){
+				name = xmlElement.name();
+			}
+			
+			Object value = map.get(name);
+			
+			if(value == null || value instanceof JSONObject.Null){ 
+				continue;
+			}
+
+			Class type = field.getType();
+			Object setObj = null;
+			Class castType = null;
+			boolean isArray = false;
+			
+			try{
+				castType = type.asSubclass(Map.class);
+				if(castType == type){
+					castType = HashMap.class;
+				}else{
+					castType = type;
+				}
+			}catch(Exception e){
+				
+			}
+			try{
+				castType = type.asSubclass(List.class);
+				if(castType == type){
+					castType = ArrayList.class;
+				}else{
+					castType = type;
+				}
+			}catch(Exception e){
+				
+			}
+			try{
+				castType = type.asSubclass(Set.class);
+				if(castType == type){
+					castType = HashSet.class;
+				}else{
+					castType = type;
+				}
+			}catch(Exception e){
+				
+			}
+			if(type.isArray()){
+				isArray = true;
+				castType = type.getComponentType();
+			}
+			
+			if(castType == null){
+				setObj = converToObj(type, value);
+			}
+			
+			//Object setObj = converToObj(type, value);
+			
+			if(setObj != null){
+				field.setAccessible(true);
+				field.set(bean, setObj);
+				field.setAccessible(false);
+			}else if(isArray){
+				
+				JSONArray jsonArray = (JSONArray)value;
+				
+				Object obj = Array.newInstance(castType, jsonArray.length());
+				
+				for(int i = 0; i < jsonArray.length(); i++){
+					setObj = converToObj(castType, jsonArray.get(i));
+					Array.set(obj, i, setObj);
+				}
+				
+				field.setAccessible(true);
+				field.set(bean, obj);
+				field.setAccessible(false);
+				
+			}else{
+				field.setAccessible(true);
+				Object ret = field.get(bean);
+				field.setAccessible(false);
+				
+				if(ret == null){
+					ret = castType.newInstance();
+					field.setAccessible(true);
+					field.set(bean, ret);
+					field.setAccessible(false);
+				}
+				
+				if(ret != null){
+					Type t = field.getGenericType();
+					if(ret instanceof List || ret instanceof Set){
+						if(t instanceof ParameterizedType){
+							Class typeClass = (Class) ((ParameterizedType) t).getActualTypeArguments()[0];
+							
+							JSONArray jsonArray = (JSONArray) value;
+							
+							Method m = ret.getClass().getDeclaredMethod("add", Object.class);
+							for(int i = 0; i < jsonArray.length(); i++){
+								setObj = converToObj(typeClass, jsonArray.get(i));
+								m.invoke(ret, setObj);
+							}
+						}else{
+							// We only support parametrised lists
+							continue;
+						}
+					}else if(ret instanceof Map){
+						// We only support key of a MAP is either a enum or a sting
+						if(t instanceof ParameterizedType){
+							Class keyCls = (Class) ((ParameterizedType) t).getActualTypeArguments()[0];
+							Class valueCls = (Class) ((ParameterizedType) t).getActualTypeArguments()[1];
+							
+							JSONObject jsonObject = (JSONObject) value;
+							for(String key : jsonObject.map.keySet()){
+								
+								Object keyObj = converToObj(keyCls, key);
+								setObj = converToObj(valueCls, jsonObject.map.get(key));
+								
+								if(keyObj != null && setObj != null){
+									Method m = ret.getClass().getDeclaredMethod("put", new Class[] { Object.class, Object.class });
+									m.invoke(ret, keyObj, setObj);
+								}
+							}
+
+						}else{
+							continue;
+						}
+
+					}
+				}
+			}
+			
+			
+    	}
+    	
+    	Class superClass = clazz.getSuperclass();
+		if(superClass != null){
+			if(!superClass.getCanonicalName().startsWith("java")){
+				recursiveConvertToBean(bean, superClass);
+			}
+		}
+    }
+    
+    private Object converToObj(Class cls, Object value) throws Exception {
+		Object obj = null;
+		// TODO : Fix generalised type conversion i.e. short/int/long/double/float 
+		try{
+			if(Date.class.equals(cls)){
+				DateFormat df = DateFormat.getDateInstance();
+				df.setTimeZone(TimeZone.getTimeZone("UTC"));
+				obj = df.parse (value.toString());
+				
+			}else if(long.class.equals(cls) || Long.class.equals(cls)){
+				obj = Long.parseLong(value.toString());
+
+			}else if(int.class.equals(cls) || Integer.class.equals(cls)){
+				obj = Integer.parseInt(value.toString());
+
+			}else if(float.class.equals(cls) || Float.class.equals(cls)){
+				obj = Float.parseFloat(value.toString());
+
+			}else if(double.class.equals(cls) || Double.class.equals(cls)){
+				obj = Double.parseDouble(value.toString());
+
+			}else if(short.class.equals(cls) || Short.class.equals(cls)){
+				obj = Short.parseShort(value.toString());
+
+			}else if(String.class.equals(cls)){
+				obj = (String)value; 
+
+			}else if(Enum.class.equals(cls.getSuperclass())){
+				Enum e = Enum.valueOf(cls, value.toString());
+				obj = e;
+			}else if(boolean.class.equals(cls) || Boolean.class.equals(cls)){
+				obj = (Boolean)value;
+			}
+			else if(value instanceof JSONObject){
+				obj = ((JSONObject) value).convertToBean(cls);
+			}
+			
+			
+		}catch (Exception e){
+			System.out.println(cls.getCanonicalName());
+			System.out.println(value.toString());
+			e.printStackTrace();
+			throw e;
+		}
+		return obj;
+	}
 }
