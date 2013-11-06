@@ -30,16 +30,15 @@ import java.io.Writer;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,7 +50,6 @@ import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TimeZone;
 
-import javax.swing.text.DateFormatter;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
@@ -1722,24 +1720,24 @@ public class JSONObject {
     }
     
     /**
-     * Convert the JSON objec to a java object
+     * Convert the JSON object to a java object
      * @param clazz
      * @return
      * @throws Exception
      */
     public <T> T convertToBean (Class<T> clazz) throws Exception{
     	
-    	Constructor<T> constructor = clazz.getDeclaredConstructor(null);
+    	Constructor<T> constructor = clazz.getDeclaredConstructor();
     	
     	constructor.setAccessible(true);
-    	T object = constructor.newInstance(null);
+    	T object = constructor.newInstance();
     	constructor.setAccessible(false);
     	
     	recursiveConvertToBean(object, clazz);
     	
     	return object;    	
     }
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({ "unchecked", "rawtypes" })
 	private void recursiveConvertToBean(Object bean, Class clazz) throws Exception{
     	
     	Field[] fileds = clazz.getDeclaredFields();
@@ -1897,12 +1895,12 @@ public class JSONObject {
 		}
     }
     
-    private Object converToObj(Class cls, Object value) throws Exception {
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	private Object converToObj(Class cls, Object value) throws Exception {
 		Object obj = null;
-		// TODO : Fix generalised type conversion i.e. short/int/long/double/float 
 		try{
 			if(Date.class.equals(cls)){
-				DateFormat df = DateFormat.getDateInstance();
+				DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
 				df.setTimeZone(TimeZone.getTimeZone("UTC"));
 				obj = df.parse (value.toString());
 				
