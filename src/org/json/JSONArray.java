@@ -973,8 +973,8 @@ public class JSONArray {
     	return arrayList;
     }
     /**
-     * Gets the JSONArray expressed as an HashSet of the specified class type.
-     * @param cls The Type of objects stored in the ArrayList
+     * Gets the JSONArray expressed as a HashSet of the specified class type.
+     * @param cls The Type of objects stored in the Set
      * @return A HashSet of objects.
      */
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -1000,5 +1000,33 @@ public class JSONArray {
     	}
     	
     	return hashSet;
+    }
+    /**
+     * Gets the JSONArray expressed as an Array of the specified class type.
+     * @param cls The Type of objects stored in the Array
+     * @return An Array of objects.
+     */
+    @SuppressWarnings("unchecked")
+	public <T> T[] getArray(Class<T> cls){
+    	T[] array = (T[]) Array.newInstance(cls, this.length());
+    	
+    	int counter = 0;
+    	for(Object obj : this.myArrayList){
+    		try{
+				Object convertedObj = JSONObject.converToObj(cls, obj);
+				
+				if(convertedObj == null){
+					JSONObject jsonObject = new JSONObject(obj);
+					convertedObj = JSONObject.converToObj(cls, jsonObject);
+				}
+				
+				array[counter] = (T) convertedObj;
+				counter++;
+			}catch (Exception e){
+				
+			}
+    	}
+    	
+    	return array;
     }
 }
