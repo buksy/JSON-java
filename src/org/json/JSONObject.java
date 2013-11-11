@@ -1934,8 +1934,6 @@ public class JSONObject {
 			
 			
 		}catch (Exception e){
-			System.out.println(cls.getCanonicalName());
-			System.out.println(value.toString());
 			e.printStackTrace();
 			throw e;
 		}
