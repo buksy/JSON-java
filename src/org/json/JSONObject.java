@@ -1896,7 +1896,7 @@ public class JSONObject {
     }
     
     @SuppressWarnings({ "rawtypes", "unchecked" })
-	private Object converToObj(Class cls, Object value) throws Exception {
+	public static Object converToObj(Class cls, Object value) throws Exception {
 		Object obj = null;
 		try{
 			if(Date.class.equals(cls)){
@@ -1920,7 +1920,7 @@ public class JSONObject {
 				obj = Short.parseShort(value.toString());
 
 			}else if(String.class.equals(cls)){
-				obj = (String)value; 
+				obj = value.toString(); 
 
 			}else if(Enum.class.equals(cls.getSuperclass())){
 				Enum e = Enum.valueOf(cls, value.toString());

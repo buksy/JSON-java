@@ -30,6 +30,7 @@ import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -940,5 +941,64 @@ public class JSONArray {
         } catch (IOException e) {
             throw new JSONException(e);
         }
+    }
+
+    /**
+     * Gets the JSONArray expressed as an ArrayList of the specified class type.
+     * @param cls The Type of objects stored in the ArrayList
+     * @return An ArrayList of objects.
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	public <T> ArrayList<T> getList(Class<T> cls){
+    	ArrayList arrayList = new ArrayList();
+    	
+    	for(Object obj : this.myArrayList){
+    		try{
+				Object convertedObj = JSONObject.converToObj(cls, obj);
+				if(convertedObj == null){
+					JSONObject jsonObject = new JSONObject(obj);
+					convertedObj = JSONObject.converToObj(cls, jsonObject);
+					if(convertedObj != null){
+						arrayList.add(convertedObj);
+					}
+				}else{
+					arrayList.add(convertedObj);
+				}
+				
+			}catch (Exception e){
+				
+			}
+    	}
+    	
+    	return arrayList;
+    }
+    /**
+     * Gets the JSONArray expressed as an HashSet of the specified class type.
+     * @param cls The Type of objects stored in the ArrayList
+     * @return A HashSet of objects.
+     */
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+	public <T> HashSet<T> getSet(Class<T> cls){
+    	HashSet hashSet = new HashSet();
+    	
+    	for(Object obj : this.myArrayList){
+    		try{
+				Object convertedObj = JSONObject.converToObj(cls, obj);
+				if(convertedObj == null){
+					JSONObject jsonObject = new JSONObject(obj);
+					convertedObj = JSONObject.converToObj(cls, jsonObject);
+					if(convertedObj != null){
+						hashSet.add(convertedObj);
+					}
+				}else{
+					hashSet.add(convertedObj);
+				}
+				
+			}catch (Exception e){
+				
+			}
+    	}
+    	
+    	return hashSet;
     }
 }
