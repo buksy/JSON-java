@@ -251,11 +251,11 @@ public class JSONObject {
      * Construct a JSONObject from a Map.
      *
      * @param map
-     *            A map object that can be used to initialize the contents of
+     *            A map object that can be used to initialise the contents of
      *            the JSONObject.
      * @throws JSONException
      */
-    public JSONObject(Map<String, Object> map) {
+    public JSONObject(Map<Object, Object> map) {
         this.map = new HashMap<String, Object>();
         if (map != null) {
             Iterator i = map.entrySet().iterator();
@@ -263,7 +263,7 @@ public class JSONObject {
 				Map.Entry e = (Map.Entry) i.next();
                 Object value = e.getValue();
                 if (value != null) {
-                    this.map.put((String)e.getKey(), wrap(value));
+                    this.map.put(e.getKey().toString(), wrap(value));
                 }
             }
         }
@@ -1044,11 +1044,7 @@ public class JSONObject {
         }
     }
     private void populateFieldMap(Object bean) {
-        Class klass = bean.getClass();
-
-// If klass is a System class then set includeSuperClass to false.
-
-        recursiveBuildFieldMap(bean, klass);
+        recursiveBuildFieldMap(bean, bean.getClass());
     }
 
 	private void recursiveBuildFieldMap(Object bean, Class klass) {
@@ -1592,13 +1588,11 @@ public class JSONObject {
             if (object instanceof Date){
             	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
             	sdf.setTimeZone(TimeZone.getTimeZone("UTC")); // The date will be always formatted to UTF
-            	String date = sdf.format((Date)object);
-            	return date;
+            	return sdf.format((Date)object);
             }
         
             Package objectPackage = object.getClass().getPackage();
-            String objectPackageName = objectPackage != null ? objectPackage
-                    .getName() : "";
+            String objectPackageName = objectPackage != null ? objectPackage.getName() : "";
             if (objectPackageName.startsWith("java.")
                     || objectPackageName.startsWith("javax.")
                     || object.getClass().getClassLoader() == null) {
