@@ -1619,8 +1619,8 @@ public class JSONObject {
 
     static final Writer writeValue(Writer writer, Object value,
             int indentFactor, int indent) throws JSONException, IOException {
-        if (value == null || value.equals(null)) {
-            writer.write("null");
+        if (value == null || value.equals(JSONObject.NULL)) {
+            writer.write(JSONObject.NULL.toString());
         } else if (value instanceof JSONObject) {
             ((JSONObject) value).write(writer, indentFactor, indent);
         } else if (value instanceof JSONArray) {
@@ -1842,8 +1842,11 @@ public class JSONObject {
 							Class typeClass = (Class) ((ParameterizedType) t).getActualTypeArguments()[0];
 							
 							JSONArray jsonArray = (JSONArray) value;
-							
+
 							Method m = ret.getClass().getDeclaredMethod("add", Object.class);
+							if (!m.isAccessible())
+								m.setAccessible(true);
+							
 							for(int i = 0; i < jsonArray.length(); i++){
 								setObj = converToObj(typeClass, jsonArray.get(i));
 								m.invoke(ret, setObj);
@@ -1866,6 +1869,8 @@ public class JSONObject {
 								
 								if(keyObj != null && setObj != null){
 									Method m = ret.getClass().getDeclaredMethod("put", new Class[] { Object.class, Object.class });
+									if (!m.isAccessible())
+										m.setAccessible(true);
 									m.invoke(ret, keyObj, setObj);
 								}
 							}
@@ -1893,6 +1898,9 @@ public class JSONObject {
 	public static Object converToObj(Class cls, Object value) throws Exception {
 		Object obj = null;
 		try{
+			if (value == null || value.equals(JSONObject.NULL))
+				return null;
+			
 			if(Date.class.equals(cls)){
 				DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
 				df.setTimeZone(TimeZone.getTimeZone("UTC"));
